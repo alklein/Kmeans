@@ -1,3 +1,5 @@
+import UTILS.*;
+
 import java.net.*;
 import java.util.*;
 import java.io.*;
@@ -28,13 +30,20 @@ public class kmeans {
 	return result;
     }
 
+    public static ArrayList<Float> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m) {
+	ArrayList<Float> result = new ArrayList<Float>();
+	return result;
+    }
+
     public static void main(String[] args) {
 	String data_file = "2D_data.txt";
 	ArrayList<ArrayList<Float>> data = load_floats(data_file);
+	ArrayList<Float> means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN);
+	/*
 	for (int i=0; i < data.size(); i++) {
 	    ArrayList<Float> cur_point = data.get(i);
 	    System.out.println(cur_point.get(0).toString() + "\t" + cur_point.get(1).toString());
-	}
+	    } */
     }
 
 }
