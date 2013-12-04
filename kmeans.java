@@ -33,23 +33,26 @@ public class kmeans {
 	return result;
     }
 
-    private static ArrayList<Float> initiate(int len, UTILS.Constants.METRIC m) {
-	ArrayList<Float> result = new ArrayList<Float>();
+    private static ArrayList<ArrayList<Float>> initiate(int k, int len, UTILS.Constants.METRIC m) {
+	ArrayList<ArrayList<Float>> result = new ArrayList<ArrayList<Float>>();
 	Random r = new Random();
-	if (m == Constants.METRIC.EUCLIDEAN) {
-	    for (int i=0; i < len; i++) {
-		float next = r.nextFloat();
-		result.add(next);
+	for (int i=0; i < k; i++) {
+	    ArrayList<Float> cur_mean = new ArrayList<Float>();
+	    if (m == Constants.METRIC.EUCLIDEAN) {
+		for (int j=0; j < len; j++) {
+		    cur_mean.add(r.nextFloat());
+		}
+	    } else if (m == Constants.METRIC.EDIT_DISTANCE) {
+		// TODO
 	    }
-	} else if (m == Constants.METRIC.EDIT_DISTANCE) {
-	    // TODO
+	    result.add(cur_mean);
 	}
 	return result;
     }
 
-    private static ArrayList<Float> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m) {
-	ArrayList<Float> result = new ArrayList<Float>();
-	result = initiate(data.get(0).size(), m);
+    private static ArrayList<ArrayList<Float>> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m) {
+	ArrayList<ArrayList<Float>> result = new ArrayList<ArrayList<Float>>();
+	result = initiate(k, data.get(0).size(), m);
 	// TODO
 
 	///////
@@ -63,8 +66,11 @@ public class kmeans {
 	}
     }
 
-    private static void list_line(ArrayList<Float> line) {
-	System.out.println(line.get(0).toString() + "\t" + line.get(1).toString());
+    private static void list_means(ArrayList<ArrayList<Float>> means) {
+	for (int i=0; i < means.size(); i++) {
+	    ArrayList<Float> line = means.get(i);
+	    System.out.println(line.get(0).toString() + "\t" + line.get(1).toString());
+	}
     }
 
     public static void main(String[] args) {
@@ -72,8 +78,8 @@ public class kmeans {
 	ArrayList<ArrayList<Float>> data = load_floats(data_file);
 	list_all(data);
 
-	ArrayList<Float> means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN);
-	list_line(means);
+	ArrayList<ArrayList<Float>> means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN);
+	list_means(means);
     }
 
 }
