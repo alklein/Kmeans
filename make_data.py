@@ -109,7 +109,7 @@ def make_DNA_data(num_strands, strand_length):
 if __name__ == "__main__":
 
     data = make_2D_data(5000)
-    np.savetxt('2D_data.txt', data, fmt='%10.5f')
+    np.savetxt('2D_data.txt', data, fmt='%10.5f', delimiter='\t')
 
     print 'number of 2D data points:', len(data)
 
