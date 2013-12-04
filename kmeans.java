@@ -50,13 +50,31 @@ public class kmeans {
 	return result;
     }
 
-    private static ArrayList<ArrayList<Float>> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m) {
-	ArrayList<ArrayList<Float>> result = new ArrayList<ArrayList<Float>>();
-	result = initiate(k, data.get(0).size(), m);
+    private static HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assign(ArrayList<ArrayList<Float>> data, ArrayList<ArrayList<Float>> means, UTILS.Constants.METRIC m) {
+	HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> result = new HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>>();
 	// TODO
-
-	///////
 	return result;
+    }
+
+    private static ArrayList<ArrayList<Float>> recenter(HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments) {
+	ArrayList<ArrayList<Float>> result = new ArrayList<ArrayList<Float>>();
+	// TODO
+	return result;
+    }
+
+    // TODO: finish implementing
+    private static ArrayList<ArrayList<Float>> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m, int mu) {
+	ArrayList<ArrayList<Float>> means = new ArrayList<ArrayList<Float>>();
+	means = initiate(k, data.get(0).size(), m);
+	int count = 0;
+
+	while (count < mu) {
+	    HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments = assign(data, means, m);
+	    means = recenter(assignments);
+	    count += 1;
+	}
+
+	return means;
     }
 
     private static void list_all(ArrayList<ArrayList<Float>> data) {
@@ -78,7 +96,7 @@ public class kmeans {
 	ArrayList<ArrayList<Float>> data = load_floats(data_file);
 	list_all(data);
 
-	ArrayList<ArrayList<Float>> means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN);
+	ArrayList<ArrayList<Float>> means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN, 10);
 	list_means(means);
     }
 
