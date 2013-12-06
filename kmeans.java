@@ -33,6 +33,20 @@ public class kmeans {
 	return result;
     }
 
+    /*
+      Distance function for DNA data
+     */
+    private static float DNA_dist(ArrayList<Float> x, ArrayList<Float> y) {
+	float result = 0;
+	for (int i=0; i < x.size(); i++) {
+	    if (x.get(i) != y.get(i)) { result += 1; }
+	}
+	return result;
+    }
+
+    /*
+      Distance function for 2D point data
+     */
     private static float Euc_dist(ArrayList<Float> x, ArrayList<Float> y) {
 	float result = 0;
 	for (int i=0; i < x.size(); i++) {
@@ -41,10 +55,13 @@ public class kmeans {
 	return result;
     }
 
-
-    private static float perturb(Random r) {
+    /*
+      Select small random perturbation, with expected size set by scale; 
+      make positive or negative with 50-50 probability
+     */
+    private static float perturb(Random r, float scale) {
 	float coin_flip = r.nextFloat();
-	float push = r.nextFloat()/20;
+	float push = r.nextFloat()/scale;
 	if (coin_flip >= .5) { return push; }
 	else { return -push; }
     }
@@ -52,7 +69,7 @@ public class kmeans {
     /*
       Initiate means by perturbing randomly about well-spaced hard-coded initial values
      */
-    private static ArrayList<ArrayList<Float>> initiate(int k, int len, UTILS.Constants.METRIC m) {
+    private static ArrayList<ArrayList<Float>> initiate(int k, int len, UTILS.Constants.METRIC m, float scale) {
 	ArrayList<ArrayList<Float>> result = new ArrayList<ArrayList<Float>>();
 	Random r = new Random();
 
@@ -60,20 +77,20 @@ public class kmeans {
 	float f2 = (float) .75;
 
 	ArrayList<Float> m1 = new ArrayList<Float>();
-	m1.add(f1 + perturb(r));
-	m1.add(f1 + perturb(r));
+	m1.add(f1 + perturb(r, scale));
+	m1.add(f1 + perturb(r, scale));
 	result.add(m1);
 	ArrayList<Float> m2 = new ArrayList<Float>();
-	m2.add(f1 + perturb(r));
-	m2.add(f2 + perturb(r));
+	m2.add(f1 + perturb(r, scale));
+	m2.add(f2 + perturb(r, scale));
 	result.add(m2);
 	ArrayList<Float> m3 = new ArrayList<Float>();
-	m3.add(f2 + perturb(r));
-	m3.add(f1 + perturb(r));
+	m3.add(f2 + perturb(r, scale));
+	m3.add(f1 + perturb(r, scale));
 	result.add(m3);
 	ArrayList<Float> m4 = new ArrayList<Float>();
-	m4.add(f2 + perturb(r));
-	m4.add(f2 + perturb(r));
+	m4.add(f2 + perturb(r, scale));
+	m4.add(f2 + perturb(r, scale));
 	result.add(m4);
 	return result;
     }
@@ -146,21 +163,24 @@ public class kmeans {
 	return result;
     }
 
-    // TODO: finish implementing
+    /*
+      Compute means iteratively for mu rounds
+     */
     private static ArrayList<ArrayList<Float>> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m, int mu) {
-	ArrayList<ArrayList<Float>> means = initiate(k, data.get(0).size(), m);
+	ArrayList<ArrayList<Float>> means = initiate(k, data.get(0).size(), m, 20);
 	int count = 0;
-
 	while (count < mu) {
 	    list_means(means);
 	    HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments = assign(data, means, m);
 	    means = recenter(assignments);
 	    count += 1;
 	}
-
 	return means;
     }
 
+    /*
+      Print out a list of "vectors"
+     */
     private static void list_all(ArrayList<ArrayList<Float>> data) {
 	for (int i=0; i < data.size(); i++) {
 	    ArrayList<Float> cur_point = data.get(i);
@@ -168,6 +188,9 @@ public class kmeans {
 	}
     }
 
+    /*
+      Print out a single "vector"
+     */
     private static void list_means(ArrayList<ArrayList<Float>> means) {
 	for (int i=0; i < means.size(); i++) {
 	    ArrayList<Float> line = means.get(i);
