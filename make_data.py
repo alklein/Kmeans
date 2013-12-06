@@ -92,7 +92,7 @@ def rejection_sample(xmin, xmax, pdf, count):
             results.append(x)
     return results
 
-def make_2D_data(num_points, mus=[.3, .7, .3, .7], sigs=[.03, .03, .09, .09], rot=None):
+def make_2D_data(num_points, mus=[.3, .7, .3, .7], sigs=[.03, .03, .03, .03], rot=None):
     mu_1x, mu_2x, mu_1y, mu_2y = mus
     sig_1x, sig_2x, sig_1y, sig_2y = sigs
     p_x = p_dist(mu_1x, mu_2x, sig_1x, sig_2x)
@@ -111,6 +111,12 @@ if __name__ == "__main__":
     data = make_2D_data(5000)
     np.savetxt('2D_data.txt', data, fmt='%10.5f', delimiter='\t')
 
+    xs, ys = data[:,0], data[:,1]
+    figure(42)
+    plot(xs, ys, '.')
+    #plot([.293, .733, .232, .786], [.763, .239, .293, .738], 'x', color='r', markersize=10)
+    plot([.699, .299, .300, .699], [.699, .7, .3, .3], 'x', color='r', markersize=10)
+
     print 'number of 2D data points:', len(data)
 
     data = make_DNA_data(5000, 10)
@@ -119,8 +125,4 @@ if __name__ == "__main__":
     print 'length of DNA strand:', len(data[0])
     print 'number of DNA strands:', len(data)
 
-    xs, ys = data[:,0], data[:,1]
-    figure(42)
-    plot(xs, ys, '.')
-
-#    show()
+    show()
