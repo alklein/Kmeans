@@ -39,7 +39,7 @@ public class kmeans {
     private static float DNA_dist(ArrayList<Float> x, ArrayList<Float> y) {
 	float result = 0;
 	for (int i=0; i < x.size(); i++) {
-	    if (x.get(i) != y.get(i)) { result += 1; }
+	    if (x.get(i) > y.get(i) || y.get(i) > x.get(i)) { result += 1; }
 	}
 	return result;
     }
@@ -107,8 +107,21 @@ public class kmeans {
 		for (int j=0; j < len; j++) {
 		    cur_mean.add(r.nextFloat());
 		}
-	    } else if (m == Constants.METRIC.EDIT_DISTANCE) {
-		// TODO
+	    } else { 
+		for (int j=0; j < len; j++) {
+		    float cutoff = r.nextFloat();
+		    float val;
+		    if (cutoff < .25) {
+			val = (float) 1;
+		    } else if (.25 <= cutoff && cutoff < .5) {
+			val = (float) 2;
+		    } else if (.5 < cutoff && cutoff <= .75) {
+			val = (float) 3;
+		    } else {
+			val = (float) 4;
+		    }
+		    cur_mean.add(val);
+		}
 	    }
 	    result.add(cur_mean);
 	}
@@ -126,8 +139,12 @@ public class kmeans {
 	    ArrayList<Float> best_mean = means.get(0);
 	    float best_dist = Euc_dist(cur_point, best_mean);
 	    for (int k=1; k < means.size(); k++) {
-		// TODO: check metric type
-		float cur_dist = Euc_dist(cur_point, means.get(k));
+		float cur_dist;
+		if (m == Constants.METRIC.EUCLIDEAN) {
+		    cur_dist = Euc_dist(cur_point, means.get(k));
+		} else {
+		    cur_dist = DNA_dist(cur_point, means.get(k));
+		}
 		if (cur_dist < best_dist) {
 		    best_dist = cur_dist;
 		    best_mean = means.get(k);
@@ -143,8 +160,9 @@ public class kmeans {
 
     /*
       Recalculate each mean as the centroid of the points assigned to it
+      TODO: include metric as param. in DNA mode, round centroids to int values.
      */
-    private static ArrayList<ArrayList<Float>> recenter(HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments) {
+    private static ArrayList<ArrayList<Float>> recenter(HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments, UTILS.Constants.METRIC m) {
 	ArrayList<ArrayList<Float>> result = new ArrayList<ArrayList<Float>>();
 	for (ArrayList<Float> mean : assignments.keySet()) {
 	    ArrayList<ArrayList<Float>> points = assignments.get(mean);
@@ -156,6 +174,10 @@ public class kmeans {
 		    sum += point.get(i);
 		}
 		float avg = sum / points.size();
+		// in DNA mode, round to int
+		if (m != Constants.METRIC.EUCLIDEAN) {
+		    avg = (float)Math.round(avg);
+		}
 		new_mean.add(avg);
 	    }
 	    result.add(new_mean);
@@ -166,13 +188,18 @@ public class kmeans {
     /*
       Compute means iteratively for mu rounds
      */
-    private static ArrayList<ArrayList<Float>> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m, int mu) {
-	ArrayList<ArrayList<Float>> means = initiate(k, data.get(0).size(), m, 20);
+    private static ArrayList<ArrayList<Float>> kmeans(ArrayList<ArrayList<Float>> data, int k, UTILS.Constants.METRIC m, int mu, boolean full_random) {	
+	ArrayList<ArrayList<Float>> means;
+	if (full_random) {
+	    means = initiate_random(k, data.get(0).size(), m);
+	} else {
+	    means = initiate(k, data.get(0).size(), m, 20);
+	}
 	int count = 0;
 	while (count < mu) {
 	    list_means(means);
 	    HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments = assign(data, means, m);
-	    means = recenter(assignments);
+	    means = recenter(assignments, m);
 	    count += 1;
 	}
 	return means;
@@ -189,9 +216,9 @@ public class kmeans {
     }
 
     /*
-      Print out a single "vector"
+      Print out a single 2D "vector"
      */
-    private static void list_means(ArrayList<ArrayList<Float>> means) {
+    private static void list_2D_means(ArrayList<ArrayList<Float>> means) {
 	for (int i=0; i < means.size(); i++) {
 	    ArrayList<Float> line = means.get(i);
 	    System.out.println(line.get(0).toString() + "\t" + line.get(1).toString());
@@ -199,12 +226,31 @@ public class kmeans {
 	System.out.println("\n");
     }
 
+    /*
+      Print out a single N-D "vector"
+     */
+    private static void list_means(ArrayList<ArrayList<Float>> means) {
+	for (int i=0; i < means.size(); i++) {
+	    ArrayList<Float> line = means.get(i);
+	    String outp = "";
+	    for (int j=0; j < line.size() - 1; j++) {
+		outp += line.get(j).toString() + "\t";
+	    }
+	    outp += line.get(line.size() - 1);
+	    System.out.println(outp);
+	}
+	System.out.println("\n");
+    }
+
     public static void main(String[] args) {
 	String data_file = "2D_data.txt";
 	ArrayList<ArrayList<Float>> data = load_floats(data_file);
-	//list_all(data);
+	ArrayList<ArrayList<Float>> means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN, 5, false);
+	list_means(means);
 
-	ArrayList<ArrayList<Float>> means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN, 5);
+	data_file = "DNA_data.txt";
+	data = load_floats(data_file);
+	means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN, 5, true);
 	list_means(means);
     }
 
