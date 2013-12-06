@@ -250,7 +250,7 @@ public class kmeans {
 
 	data_file = "DNA_data.txt";
 	data = load_floats(data_file);
-	means = kmeans(data, 4, Constants.METRIC.EUCLIDEAN, 5, true);
+	means = kmeans(data, 4, Constants.METRIC.DNA, 5, true);
 	list_means(means);
     }
 
