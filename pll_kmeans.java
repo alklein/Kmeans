@@ -126,141 +126,114 @@ public class pll_kmeans {
 	return result;
     }
 
+    /*
+      Print out a single 2D "vector"
+     */
+    private static void list_2D_means(ArrayList<ArrayList<Float>> means) {
+	for (int i=0; i < means.size(); i++) {
+	    ArrayList<Float> line = means.get(i);
+	    System.out.println(line.get(0).toString() + "\t" + line.get(1).toString());
+	}
+	System.out.println("\n");
+    }
+
 
     public static void main(String[] args) throws MPIException {
 
+	// Set up constants and data
 	String data_file = "2D_data.txt";
-	int mu = 3;
+	int mu = 5;
 	int k = 4;
 	UTILS.Constants.METRIC m = Constants.METRIC.EUCLIDEAN;
 	ArrayList<ArrayList<Float>> data = load_floats(data_file);
-	ArrayList<ArrayList<Float>> means = initiate(k, data.get(0).size(), 20);       
 
+	// Initialize means in array-list and array form
+	ArrayList<ArrayList<Float>> means = initiate(k, data.get(0).size(), 20);       
+	float[][] hard_means = new float[k][2];
+	for (int i=0; i < k; i++) {
+	    float[] row = new float[2];
+	    row[0] = means.get(i).get(0);
+	    row[1] = means.get(i).get(1);
+	    hard_means[i] = row;
+	}
+
+	// Set up MPI
 	MPI.Init(args);
 	int myrank = MPI.COMM_WORLD.Rank();
 
+	// Partition data 
 	int points_per_worker = data.size() / MPI.COMM_WORLD.Size();
 	int start = points_per_worker * myrank;
 	int finish = points_per_worker * (myrank + 1);
 	if (myrank == MPI.COMM_WORLD.Size() - 1) {
 	    finish = data.size(); // leftovers
 	}
-	float[] myrange = {start, finish};
-
+	float[] myrange = {start, finish};	
 	ArrayList<ArrayList<Float>> mydata = new ArrayList<ArrayList<Float>>();
 	for (int i=0; i < data.size(); i++) {
 	    if ( (i >= start) && (i < finish)) {
 		mydata.add(data.get(i));
 	    }
 	}
-
 	int mydata_len = mydata.size();
 
-	// start loop to mu here
-	HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments = assign(mydata, means, m);	
-	
-	int[] partial_counts = new int[k];
-	int[] total_counts;
+	// Recompute kmeans for mu iterations
+	int count = 0;
+	while (count < mu) {
 
-	int[] partial_sums_0 = new int[k];
-	int[] total_sums_0;
-
-	int[] partial_sums_1 = new int[k];
-	int[] total_sums_1;
-
-	for (int i=0; i < means.size(); i++) {
-	    ArrayList<Float> cur_mean = means.get(i);
-	    ArrayList<ArrayList<Float>> his_points = assignments.get(cur_mean);
-	    int partial_count = 0;
-	    int partial_sum_0 = 0;
-	    int partial_sum_1 = 0;
-	    for (int j=0; j < his_points.size(); j++) {
-		ArrayList<Float> cur_point = his_points.get(j);
-		partial_count += 1;
-		partial_sum_0 += cur_point.get(0);
-		partial_sum_1 += cur_point.get(1);
+	    HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments = assign(mydata, means, m);	
+	    
+	    float[] partial_counts = new float[k];
+	    float[] total_counts = new float[k];
+	    
+	    float[] partial_sums_0 = new float[k];
+	    float[] total_sums_0 = new float[k];
+	    
+	    float[] partial_sums_1 = new float[k];
+	    float[] total_sums_1 = new float[k];
+	    
+	    // compute partial (local) sums and counts
+	    for (int i=0; i < k; i++) {
+		ArrayList<Float> cur_mean = means.get(i);
+		ArrayList<ArrayList<Float>> his_points = assignments.get(cur_mean);
+		float partial_count = (float) 0;
+		float partial_sum_0 = (float) 0;
+		float partial_sum_1 = (float) 0;
+		for (int j=0; j < his_points.size(); j++) {
+		    ArrayList<Float> cur_point = his_points.get(j);
+		    partial_count += (float) 1;
+		    partial_sum_0 += cur_point.get(0);
+		    partial_sum_1 += cur_point.get(1);
+		}
+		partial_counts[i] = partial_count;
+		partial_sums_0[i] = partial_sum_0;
+		partial_sums_1[i] = partial_sum_1;
 	    }
-	    partial_counts[i] = partial_count;
-	    partial_sums_0[i] = partial_sum_0;
-	    partial_sums_1[i] = partial_sum_1;
-	}
+	    
+	    // reduce to total sum and count for each mean
+	    MPI.COMM_WORLD.Allreduce(partial_counts, 0, total_counts, 0, k, MPI.FLOAT, MPI.SUM); //, 0);
+	    MPI.COMM_WORLD.Allreduce(partial_sums_0, 0, total_sums_0, 0, k, MPI.FLOAT, MPI.SUM); //, 0);
+	    MPI.COMM_WORLD.Allreduce(partial_sums_1, 0, total_sums_1, 0, k, MPI.FLOAT, MPI.SUM); //, 0);
+	    
+	    // recompute means
+	    ArrayList<ArrayList<Float>> new_means = new ArrayList<ArrayList<Float>>();
+	    for (int i=0; i < k; i++) {
+		ArrayList<Float> new_mean = new ArrayList<Float>();
+		float xval = total_sums_0[i] / total_counts[i];
+		float yval = total_sums_1[i] / total_counts[i];
+		new_mean.add(xval);
+		new_mean.add(yval);
+		new_means.add(new_mean);
+	    }	    
 
-	// TODO: reduce all the partial things;
-	// recompute the means
-
-	float[] myarr = {1, 2, 3, 4, 5};
-	float[] result = new float[5];	
-
-	if (myrank == 0) { System.out.println("Total length of data: " + Integer.toString(data.size())); }
-	System.out.println("My rank: " + Integer.toString(myrank) + " my start: " + Integer.toString(start) + " my finish: " + Integer.toString(finish));
-
-	MPI.COMM_WORLD.Reduce(myarr, 0, result, 0, 5, MPI.FLOAT, MPI.SUM, 0);
-	if (myrank == 0) {
-	    for (int i=0; i < result.length; i++) {
-		System.out.println("Result: " + Float.toString(result[i]));
+	    // master prints out new means
+	    if (myrank == 0) {
+		list_2D_means(new_means);
 	    }
+	    
+	    means = new_means;
+	    count += 1;
 	}
-
-	/*
-
-	//int source;  // Rank of sender
-	//int dest;    // Rank of receiver 
-	//int tag=50;  // Tag for messages
-
-	if (myrank == 0) {
-	    // MASTER
-	    dest = 0;
-	    String myhost = MPI.Get_processor_name();
-	    char [] message = ("Greetings from master").toCharArray();
-	    MPI.COMM_WORLD.Send(message, 0, message.length, MPI.CHAR,dest, tag);
-	    char [] m1 = new char [1000] ;
-	    char [] m2 = new char [1000] ;
-	    MPI.MPI_Reduce(m1, m2, 0, MPI_COMM_WORLD);
-	} else {
-	    // WORKER
-	    char [] message = new char [1000];
-	    Status s = MPI.COMM_WORLD.Recv(message, 0, 60, MPI.CHAR, MPI.ANY_SOURCE, tag);
-	    char [] message = ("Worker response to " + message).toCharArray();
-	    MPI.COMM_WORLD.Send(message, 0, message.length, MPI.CHAR,dest, tag);
-	    }*/
-
-	/*
-	  if master:
-	  while phase < mu:
-	    send jobs;
-	    block until receipt;
-	    reduce result;
-	    increment phase
-	  end computation
-
-
-	  if worker:
-	  receive job
-	  perform work
-	  send result
-	 */
-
-	/*
- 	int my_rank; // Rank of process
-
-
-	int      p = MPI.COMM_WORLD.Size() ;
-
-	if(myrank != 0) {
-	    dest=0;
-	    String myhost = MPI.Get_processor_name();
-	    char [] message = ("Greetings from process " + myrank+" on "+myhost).toCharArray() ;
-	    MPI.COMM_WORLD.Send(message, 0, message.length, MPI.CHAR,dest, tag) ;
-	}
-	else {  // my_rank == 0
-	    for (source =1;source < p;source++) {
-		char [] message = new char [60] ;
-		Status s = MPI.COMM_WORLD.Recv(message, 0, 60, MPI.CHAR, MPI.ANY_SOURCE, tag) ;
-		int nrecv = s.Get_count(MPI.CHAR);
-		String s1 = new String(message);
-		System.out.println("received: " + s1.substring(0,nrecv) + " : ") ;
-	    }
-	    }*/
 
 	MPI.Finalize();
     }
