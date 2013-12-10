@@ -92,7 +92,7 @@ def rejection_sample(xmin, xmax, pdf, count):
             results.append(x)
     return results
 
-def make_2D_data(num_points, mus=[.3, .7, .3, .7], sigs=[.03, .03, .03, .03], rot=None):
+def make_2D_data(num_points, mus=[.3, .7, .3, .7], sigs=[.03, .03, .01, .01], rot=None):
     mu_1x, mu_2x, mu_1y, mu_2y = mus
     sig_1x, sig_2x, sig_1y, sig_2y = sigs
     p_x = p_dist(mu_1x, mu_2x, sig_1x, sig_2x)
