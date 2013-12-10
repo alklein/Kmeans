@@ -7,12 +7,17 @@ Kadoop is a map-reduce framework with custom distributed file system.
 
 ## Setup
 
-* Set the environment variables:
+* Set the PATH variable:
   > setenv PATH ${PATH}:/usr/local/lib/openmpi/bin 
+
+* Set the CLASSPATH variable:
   > setenv CLASSPATH ./:/usr/local/lib/openmpi/lib/mpi.jar
 
 * Build the project: 
   > make all
+
+* If desired, generate new data:
+  > python make_data.py
   
 ## Examples
 
