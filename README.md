@@ -3,8 +3,6 @@ Kmeans
 
 Sequential and Parallel K-Means Clustering
 
-Kadoop is a map-reduce framework with custom distributed file system.
-
 ## Setup
 
 * Set the PATH variable:
