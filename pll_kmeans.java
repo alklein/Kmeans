@@ -106,7 +106,12 @@ public class pll_kmeans {
 	for (int j=0; j < data.size(); j++) {
 	    ArrayList<Float> cur_point = data.get(j);
 	    ArrayList<Float> best_mean = means.get(0);
-	    float best_dist = Euc_dist(cur_point, best_mean);
+	    float best_dist;
+	    if (m == Constants.METRIC.EUCLIDEAN) {
+		best_dist = Euc_dist(cur_point, best_mean);
+	    } else {
+		best_dist = DNA_dist(cur_point, best_mean);
+	    }
 	    for (int k=1; k < means.size(); k++) {
 		float cur_dist;
 		if (m == Constants.METRIC.EUCLIDEAN) {
@@ -137,13 +142,12 @@ public class pll_kmeans {
 	System.out.println("\n");
     }
 
-
-    public static void main(String[] args) throws MPIException {
+    /*
+      Parallel kmeans calculation for 2D point data
+     */
+    private static void kmeans_2D(String[] args, String data_file, int mu, int k) throws MPIException {
 
 	// Set up constants and data
-	String data_file = "2D_data.txt";
-	int mu = 5;
-	int k = 4;
 	UTILS.Constants.METRIC m = Constants.METRIC.EUCLIDEAN;
 	ArrayList<ArrayList<Float>> data = load_floats(data_file);
 
@@ -158,8 +162,11 @@ public class pll_kmeans {
 	}
 
 	// Set up MPI
-	MPI.Init(args);
+	//MPI.Init(args);
 	int myrank = MPI.COMM_WORLD.Rank();
+	if (myrank == 0) {
+	    System.out.println("\n Running kmeans on 2D point data...\n");
+	}
 
 	// Partition data 
 	int points_per_worker = data.size() / MPI.COMM_WORLD.Size();
@@ -234,6 +241,179 @@ public class pll_kmeans {
 	    means = new_means;
 	    count += 1;
 	}
+
+	//MPI.Finalize();
+    }
+
+    /*
+      Randomly select initial values of means
+     */
+    private static ArrayList<ArrayList<Float>> initiate_random(int k, int len, UTILS.Constants.METRIC m) {
+	ArrayList<ArrayList<Float>> result = new ArrayList<ArrayList<Float>>();
+	Random r = new Random();
+	for (int i=0; i < k; i++) {
+	    ArrayList<Float> cur_mean = new ArrayList<Float>();
+	    if (m == Constants.METRIC.EUCLIDEAN) {
+		for (int j=0; j < len; j++) {
+		    cur_mean.add(r.nextFloat());
+		}
+	    } else { 
+		for (int j=0; j < len; j++) {
+		    float cutoff = r.nextFloat();
+		    float val;
+		    if (cutoff < .25) {
+			val = (float) 1;
+		    } else if (.25 <= cutoff && cutoff < .5) {
+			val = (float) 2;
+		    } else if (.5 < cutoff && cutoff <= .75) {
+			val = (float) 3;
+		    } else {
+			val = (float) 4;
+		    }
+		    cur_mean.add(val);
+		}
+	    }
+	    result.add(cur_mean);
+	}
+	return result;
+    }
+
+    /*
+      Parallel kmeans calculation for 2D DNA data
+     */
+    private static void kmeans_DNA(String[] args, String data_file, int mu, int k) throws MPIException {
+
+	// Set up constants and data
+	UTILS.Constants.METRIC m = Constants.METRIC.DNA;
+	ArrayList<ArrayList<Float>> data = load_floats(data_file);
+
+	// Initialize means in array-list and array form
+	ArrayList<ArrayList<Float>> means = initiate_random(k, data.get(0).size(), m);       
+	float[][] hard_means = new float[k][2];
+	for (int i=0; i < k; i++) {
+	    float[] row = new float[2];
+	    row[0] = means.get(i).get(0);
+	    row[1] = means.get(i).get(1);
+	    hard_means[i] = row;
+	}
+
+	// Set up MPI
+	//MPI.Init(args);
+	int myrank = MPI.COMM_WORLD.Rank();
+	if (myrank == 0) {
+	    System.out.println("\n Running kmeans on DNA data...\n");
+	}
+
+	// Partition data 
+	int points_per_worker = data.size() / MPI.COMM_WORLD.Size();
+	int start = points_per_worker * myrank;
+	int finish = points_per_worker * (myrank + 1);
+	if (myrank == MPI.COMM_WORLD.Size() - 1) {
+	    finish = data.size(); // leftovers
+	}
+	float[] myrange = {start, finish};	
+	ArrayList<ArrayList<Float>> mydata = new ArrayList<ArrayList<Float>>();
+	for (int i=0; i < data.size(); i++) {
+	    if ( (i >= start) && (i < finish)) {
+		mydata.add(data.get(i));
+	    }
+	}
+	int mydata_len = mydata.size();
+
+	// Recompute kmeans for mu iterations
+	int count = 0;
+	while (count < mu) {
+
+	    HashMap <ArrayList<Float>, ArrayList<ArrayList<Float>>> assignments = assign(mydata, means, m);	
+	    
+	    float[] partial_counts = new float[k];
+	    float[] total_counts = new float[k];
+	    
+	    float[] partial_sums_0 = new float[k];
+	    float[] total_sums_0 = new float[k];
+	    
+	    float[] partial_sums_1 = new float[k];
+	    float[] total_sums_1 = new float[k];
+	    
+	    // compute partial (local) sums and counts
+	    for (int i=0; i < k; i++) {
+		ArrayList<Float> cur_mean = means.get(i);
+		ArrayList<ArrayList<Float>> his_points = assignments.get(cur_mean);
+		float partial_count = (float) 0;
+		float partial_sum_0 = (float) 0;
+		float partial_sum_1 = (float) 0;
+		for (int j=0; j < his_points.size(); j++) {
+		    ArrayList<Float> cur_point = his_points.get(j);
+		    partial_count += (float) 1;
+		    partial_sum_0 += cur_point.get(0);
+		    partial_sum_1 += cur_point.get(1);
+		}
+		partial_counts[i] = partial_count;
+		partial_sums_0[i] = partial_sum_0;
+		partial_sums_1[i] = partial_sum_1;
+	    }
+	    
+	    // reduce to total sum and count for each mean
+	    MPI.COMM_WORLD.Allreduce(partial_counts, 0, total_counts, 0, k, MPI.FLOAT, MPI.SUM); //, 0);
+	    MPI.COMM_WORLD.Allreduce(partial_sums_0, 0, total_sums_0, 0, k, MPI.FLOAT, MPI.SUM); //, 0);
+	    MPI.COMM_WORLD.Allreduce(partial_sums_1, 0, total_sums_1, 0, k, MPI.FLOAT, MPI.SUM); //, 0);
+	    
+	    // recompute means
+	    ArrayList<ArrayList<Float>> new_means = new ArrayList<ArrayList<Float>>();
+	    for (int i=0; i < k; i++) {
+		ArrayList<Float> new_mean = new ArrayList<Float>();
+		float xval = total_sums_0[i] / total_counts[i];
+		float yval = total_sums_1[i] / total_counts[i];
+		xval = (float)Math.round(xval);
+		yval = (float)Math.round(yval);
+		new_mean.add(xval);
+		new_mean.add(yval);
+		new_means.add(new_mean);
+	    }	    
+
+	    // master prints out new means
+	    if (myrank == 0) {
+		list_2D_means(new_means);
+	    }
+	    
+	    means = new_means;
+	    count += 1;
+	}
+
+	//MPI.Finalize();
+    }
+
+    private static void run_2D(String[] args) {
+	String data_file = "2D_data.txt";
+	int mu = 5;
+	int k = 4;
+	try {
+	    kmeans_2D(args, data_file, mu, k);
+	} catch (MPIException e) {
+	    e.printStackTrace();
+	}
+    }
+
+    private static void run_DNA(String[] args) {
+	String data_file = "DNA_data_2D.txt";
+	int mu = 5;
+	int k = 4;
+	try {
+	    kmeans_DNA(args, data_file, mu, k);
+	} catch (MPIException e) {
+	    e.printStackTrace();
+	}
+    }
+
+    public static void main(String[] args) throws MPIException {
+
+	MPI.Init(args);
+
+	// 2D kmeans
+	run_2D(args);
+
+	// DNA kmeans
+	run_DNA(args);
 
 	MPI.Finalize();
     }
